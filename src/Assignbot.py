@@ -32,6 +32,7 @@ async def ping(ctx):
 async def shutdown(ctx):
     await ctx.send("Bot is shutting down.")
     await client.close()
+    database.close(True)
     print("AssignBot Closed...")
 
 #@client.command()
