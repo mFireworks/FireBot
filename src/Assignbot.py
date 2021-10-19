@@ -11,8 +11,26 @@ intents = discord.Intents(guilds=True, members=True, messages=True, reactions=Tr
 bot = commands.Bot(command_prefix='.', intents=intents)
 
 # Load Configuration Options
-configFile = open('data/config.json')
-config = json.load(configFile)
+configFile = 1
+config = {}
+try:
+    configFile = open('data/config.json')
+except:
+    print("config.json couldn't be read! Creating the default template...")
+    print("Be sure to insert your IDs into the file into the correct locations.")
+    config = {
+        "ownerID": "insert-your-user-ID-here",
+        "token": "insert-bot-token-here"
+    }
+    with open('data/config.json', "w+") as configFile:
+        json.dump(config, configFile, indent=4)
+    exit()
+try:
+    config = json.load(configFile)
+except:
+    print("There seems to be an issue with the config.json file. Couldn't be read as json.")
+    print("Ensure the file is valid json.")
+    exit()
 configFile.close()
 
 # Establish Connection to Database

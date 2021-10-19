@@ -34,6 +34,7 @@ When the bot is running, it has a few commands that you can use. The prefix for 
   * Simply replies `Pong!` with how many milliseconds it took to respond.
 * .shutdown
   * Safely shuts down the bot, closing any connections to open files.
+  * Only the user defined within the `OwnerID` can run this command.
 * .setjoinrole [id]
   * Sets the role that new users to this server will be assigned.
 * .setloggingchannel
