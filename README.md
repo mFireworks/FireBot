@@ -1,7 +1,7 @@
-# Assignbot
-I was tired of assigning roles to new users in my servers, but I didn't want to install a whole bot system just to assign some roles. So I decided to make my own. All this bot does is assign a specified role to users that join the server it's within.
+# FireBot
+This is based off of [AssignBot](https://github.com/Michael-Long/Assignbot), but expands the bot to accomplish more tasks. More of a personal bot than to be used by others, as the features added are ones that my personal server's wanted.
 
-## Features
+## Current Features
 * Assign a role to new users when they join in a server
 * Able to handle multiple servers with a single running instance
 * Saves data to a local file to maintain information after shutdown
