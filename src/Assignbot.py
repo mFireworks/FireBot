@@ -5,6 +5,10 @@ from discord.ext import commands
 import apsw
 # Using json for config stuff
 import json
+# Using Requests to query website for bingo board row count
+import requests
+# Using Random to generate random bingo codes
+import random
 
 # Initialize Bot
 intents = discord.Intents(guilds=True, members=True, messages=True, reactions=True)
@@ -32,6 +36,10 @@ except:
     print("Ensure the file is valid json.")
     exit()
 configFile.close()
+
+# Query Bingo Database for Count
+countPayload = {'count': True}
+count = requests.get('http://localhost/michaeldoescoding/projects/pokemon/nuzlockebingo/ctrlpanel/index.php', params=countPayload)
 
 # Establish Connection to Database
 database = apsw.Connection("data/db.sqlite")
@@ -108,5 +116,28 @@ async def setloggingchannel(ctx):
     else:
         dbCursor.execute("update main set LoggingChannelID = ? where ServerID = ?", (ctx.channel.id, ctx.guild.id))
     await logMessage(ctx.guild, ctx.channel, "#" + ctx.channel.name + " set as the logging channel for AssignBot.")
+
+@bot.command()
+async def bingo(ctx):
+    allowBingo = list(dbCursor.execute("select AllowBingo from main where ServerID = ?", (ctx.guild.id, )))
+    if (len(allowBingo) > 0 and allowBingo[0] != 0):
+        userEntry = list(dbCursor.execute("select BingoCode from bingo where ServerID = ? and UserID = ?", (ctx.guild.id, ctx.author.id)))
+        bingoCode = ""
+        if (len(userEntry) == 0):
+            # generate new code and put it into the table
+            pickedEntries = list()
+            for index in range(24):
+                randEntry = random.randint(0, count)
+                while pickedEntries.count(randEntry) > 0:
+                    randEntry = random.randint(0, count)
+                randEntryHex = hex(randEntry)[2]
+                while len(randEntryHex) < 4:
+                    randEntryHex = "0" + randEntryHex
+                bingoCode = bingoCode + randEntryHex
+                pickedEntries.append(randEntry)
+            dbCursor.execute("insert into bingo (ServerID, UserID, BingoCode) values (?, ?, ?)", (ctx.guild.id, ctx.author.id, bingoCode))
+        else:
+            bingoCode = userEntry[0]
+        ctx.channel.send(ctx.author.mention + " Bingo Code: " + bingoCode)
 
 bot.run(config['token'])
