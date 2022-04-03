@@ -39,7 +39,7 @@ configFile.close()
 
 # Query Bingo Database for Count
 countPayload = {'count': True}
-count = requests.get('http://localhost/michaeldoescoding/projects/pokemon/nuzlockebingo/ctrlpanel/index.php', params=countPayload)
+count = int(requests.get('http://localhost/michaeldoescoding/projects/pokemon/nuzlockebingo/ctrlpanel/index.php', params=countPayload).text)
 
 # Establish Connection to Database
 database = apsw.Connection("data/db.sqlite")
@@ -65,15 +65,17 @@ async def logMessage(guild, defaultChannel, message):
 
 async def canUseAdminCommand(guild, channel, user):
     adminRoles = list(dbCursor.execute("select AdminRoleID from adminRoles where ServerID = ?", (guild.id, )))
+    isAdmin = False
     if (len(adminRoles) == 0):
         # If no adminRoles have been set yet, then ensure that the user has Manage Guild permissions?
-        if (not user.permissions_in(channel).manage_guild):
-            return False
+        isAdmin = user.permissions_in(channel).manage_guild
     else:
-        isAdmin = False
         for role in user.roles:
-            isAdmin = adminRoles.count(role.id) > 0 or isAdmin
-        return isAdmin
+            isAdmin = adminRoles[0].count(str(role.id)) > 0 or isAdmin
+
+    if not isAdmin:
+        await channel.send("You need admin permissions to run this command")
+    return isAdmin
 
 # Events
 @bot.event
@@ -99,7 +101,8 @@ async def ping(ctx):
 
 @bot.command()
 async def shutdown(ctx):
-    if (not canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)):
+    isAdmin = await canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)
+    if (not isAdmin):
         return
 
     await logMessage(ctx.guild, ctx.channel, "Bot is shutting down.")
@@ -109,7 +112,8 @@ async def shutdown(ctx):
 
 @bot.command()
 async def setjoinrole(ctx, joinRoleID):
-    if (not canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)):
+    isAdmin = await canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)
+    if (not isAdmin):
         return
 
     joinRole = ctx.guild.get_role(int(joinRoleID))
@@ -126,7 +130,8 @@ async def setjoinrole(ctx, joinRoleID):
 
 @bot.command()
 async def addAdminRole(ctx, adminRoleID):
-    if (not canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)):
+    isAdmin = await canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)
+    if (not isAdmin):
         return
 
     adminRole = ctx.guild.get_role(int(adminRoleID))
@@ -141,7 +146,8 @@ async def addAdminRole(ctx, adminRoleID):
 
 @bot.command()
 async def removeAdminRole(ctx, adminRoleID):
-    if (not canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)):
+    isAdmin = await canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)
+    if (not isAdmin):
         return
 
     adminRole = ctx.guild.get_role(int(adminRoleID))
@@ -152,11 +158,12 @@ async def removeAdminRole(ctx, adminRoleID):
     existingRoles = list(dbCursor.execute("select AdminRoleID from adminRoles where ServerID = ? and AdminRoleID = ?", (ctx.guild.id, adminRoleID)))
     if (len(existingRoles) > 0):
         dbCursor.execute("delete from adminRoles where ServerID = ? and AdminRoleID = ?", (ctx.guild.id, adminRoleID))
-        await logMessage(ctx.guild, ctx.channel, "Added " + adminRole.name + " as an admin role.")
+        await logMessage(ctx.guild, ctx.channel, "Removed " + adminRole.name + " as an admin role.")
 
 @bot.command()
 async def setloggingchannel(ctx):
-    if (not canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)):
+    isAdmin = await canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)
+    if (not isAdmin):
         return
 
     serverEntry = list(dbCursor.execute("select ServerID from flags where ServerID = ?", (ctx.guild.id, )))
@@ -169,7 +176,7 @@ async def setloggingchannel(ctx):
 @bot.command()
 async def bingo(ctx):
     allowBingo = list(dbCursor.execute("select AllowBingo from flags where ServerID = ?", (ctx.guild.id, )))
-    if (len(allowBingo) > 0 and allowBingo[0] != 0):
+    if (len(allowBingo) > 0 and allowBingo[0][0] != 0):
         userEntry = list(dbCursor.execute("select BingoCode from bingo where ServerID = ? and UserID = ?", (ctx.guild.id, ctx.author.id)))
         bingoCode = ""
         if (len(userEntry) == 0):
@@ -186,7 +193,7 @@ async def bingo(ctx):
                 pickedEntries.append(randEntry)
             dbCursor.execute("insert into bingo (ServerID, UserID, BingoCode) values (?, ?, ?)", (ctx.guild.id, ctx.author.id, bingoCode))
         else:
-            bingoCode = userEntry[0]
-        ctx.channel.send(ctx.author.mention + " Bingo Code: " + bingoCode)
+            bingoCode = userEntry[0][0]
+        await ctx.channel.send(ctx.author.mention + " Bingo Code: " + bingoCode)
 
 bot.run(config['token'])
