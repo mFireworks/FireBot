@@ -1,1 +1,1 @@
-python src/Assignbot.py
+python src/FireBot.py
