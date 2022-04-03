@@ -47,7 +47,7 @@ dbCursor = database.cursor()
 
 # Helper Functions
 async def logMessage(guild, defaultChannel, message):
-    loggingID = list(dbCursor.execute("select LoggingChannelID from main where ServerID = ?", (guild.id, )))
+    loggingID = list(dbCursor.execute("select LoggingChannelID from flags where ServerID = ?", (guild.id, )))
     if (len(loggingID) == 0):
         if (defaultChannel == None):
             print(message)
@@ -63,6 +63,18 @@ async def logMessage(guild, defaultChannel, message):
         return
     await logChannel.send(message)
 
+async def canUseAdminCommand(guild, channel, user):
+    adminRoles = list(dbCursor.execute("select AdminRoleID from adminRoles where ServerID = ?", (guild.id, )))
+    if (len(adminRoles) == 0):
+        # If no adminRoles have been set yet, then ensure that the user has Manage Guild permissions?
+        if (not user.permissions_in(channel).manage_guild):
+            return False
+    else:
+        isAdmin = False
+        for role in user.roles:
+            isAdmin = adminRoles.count(role.id) > 0 or isAdmin
+        return isAdmin
+
 # Events
 @bot.event
 async def on_ready():
@@ -71,7 +83,7 @@ async def on_ready():
 @bot.event
 async def on_member_join(member):
     print("We have triggered the join event")
-    joinRoleID = list(dbCursor.execute("select JoinRoleID from main where ServerID = ?", (member.guild.id, )))
+    joinRoleID = list(dbCursor.execute("select JoinRoleID from flags where ServerID = ?", (member.guild.id, )))
     if (len(joinRoleID) == 0):
         await logMessage(member.guild, None, member.guild.name + " doesn't have a join role set")
         return
@@ -87,8 +99,9 @@ async def ping(ctx):
 
 @bot.command()
 async def shutdown(ctx):
-    if (ctx.author.id != int(config['ownerID'])):
+    if (not canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)):
         return
+
     await logMessage(ctx.guild, ctx.channel, "Bot is shutting down.")
     await bot.close()
     database.close(True)
@@ -96,30 +109,66 @@ async def shutdown(ctx):
 
 @bot.command()
 async def setjoinrole(ctx, joinRoleID):
+    if (not canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)):
+        return
+
     joinRole = ctx.guild.get_role(int(joinRoleID))
     if (joinRole == None):
         await logMessage(ctx.guild, ctx.channel, "Provided role not found.")
         return
 
-    serverEntries = list(dbCursor.execute("select ServerID from main where ServerID = ?", (ctx.guild.id, )))
+    serverEntries = list(dbCursor.execute("select ServerID from flags where ServerID = ?", (ctx.guild.id, )))
     if (len(serverEntries) == 0):
-        dbCursor.execute("insert into main (ServerID, JoinRoleID) values (?, ?)", (ctx.guild.id, joinRoleID))
+        dbCursor.execute("insert into flags (ServerID, JoinRoleID) values (?, ?)", (ctx.guild.id, joinRoleID))
     else:
-        dbCursor.execute("update main set JoinRoleID = ? where ServerID = ?", (joinRoleID, ctx.guild.id))
+        dbCursor.execute("update flags set JoinRoleID = ? where ServerID = ?", (joinRoleID, ctx.guild.id))
     await logMessage(ctx.guild, ctx.channel, joinRole.name + " has been set as the auto-join role for " + ctx.guild.name)
 
 @bot.command()
+async def addAdminRole(ctx, adminRoleID):
+    if (not canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)):
+        return
+
+    adminRole = ctx.guild.get_role(int(adminRoleID))
+    if (adminRole == None):
+        await logMessage(ctx.guild, ctx.channel, "Provided role not found.")
+        return
+
+    existingRoles = list(dbCursor.execute("select AdminRoleID from adminRoles where ServerID = ? and AdminRoleID = ?", (ctx.guild.id, adminRoleID)))
+    if (len(existingRoles) == 0):
+        dbCursor.execute("insert into adminRoles (ServerID, AdminRoleID) values (?, ?)", (ctx.guild.id, adminRoleID))
+        await logMessage(ctx.guild, ctx.channel, "Added " + adminRole.name + " as an admin role.")
+
+@bot.command()
+async def removeAdminRole(ctx, adminRoleID):
+    if (not canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)):
+        return
+
+    adminRole = ctx.guild.get_role(int(adminRoleID))
+    if (adminRole == None):
+        await logMessage(ctx.guild, ctx.channel, "Provided role not found.")
+        return
+
+    existingRoles = list(dbCursor.execute("select AdminRoleID from adminRoles where ServerID = ? and AdminRoleID = ?", (ctx.guild.id, adminRoleID)))
+    if (len(existingRoles) > 0):
+        dbCursor.execute("delete from adminRoles where ServerID = ? and AdminRoleID = ?", (ctx.guild.id, adminRoleID))
+        await logMessage(ctx.guild, ctx.channel, "Added " + adminRole.name + " as an admin role.")
+
+@bot.command()
 async def setloggingchannel(ctx):
-    serverEntry = list(dbCursor.execute("select ServerID from main where ServerID = ?", (ctx.guild.id, )))
+    if (not canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)):
+        return
+
+    serverEntry = list(dbCursor.execute("select ServerID from flags where ServerID = ?", (ctx.guild.id, )))
     if (len(serverEntry) == 0):
-        dbCursor.execute("insert into main (ServerID, LoggingChannelID) values (?, ?)", (ctx.guild.id, ctx.channel.id))
+        dbCursor.execute("insert into flags (ServerID, LoggingChannelID) values (?, ?)", (ctx.guild.id, ctx.channel.id))
     else:
-        dbCursor.execute("update main set LoggingChannelID = ? where ServerID = ?", (ctx.channel.id, ctx.guild.id))
+        dbCursor.execute("update flags set LoggingChannelID = ? where ServerID = ?", (ctx.channel.id, ctx.guild.id))
     await logMessage(ctx.guild, ctx.channel, "#" + ctx.channel.name + " set as the logging channel for AssignBot.")
 
 @bot.command()
 async def bingo(ctx):
-    allowBingo = list(dbCursor.execute("select AllowBingo from main where ServerID = ?", (ctx.guild.id, )))
+    allowBingo = list(dbCursor.execute("select AllowBingo from flags where ServerID = ?", (ctx.guild.id, )))
     if (len(allowBingo) > 0 and allowBingo[0] != 0):
         userEntry = list(dbCursor.execute("select BingoCode from bingo where ServerID = ? and UserID = ?", (ctx.guild.id, ctx.author.id)))
         bingoCode = ""
