@@ -191,6 +191,19 @@ async def toggleBingo(ctx):
         await ctx.channel.send("Bingo has been deactivated for this server.")
 
 @bot.command()
+async def resetUserBingo(ctx, userID):
+    isAdmin = await canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)
+    if (not isAdmin):
+        return
+    user = ctx.guild.get_member(int(userID))
+    if (user == None):
+        await ctx.channel.send("No user found in this server with ID: " + userID)
+        return
+    
+    dbCursor.execute("delete from bingo where ServerID = ? and UserID = ?", (ctx.guild.id, userID))
+    await ctx.channel.send("Bingo Code has been cleared from " + user.name)
+
+@bot.command()
 async def bingo(ctx):
     allowBingo = list(dbCursor.execute("select AllowBingo from flags where ServerID = ?", (ctx.guild.id, )))
     if (len(allowBingo) > 0 and allowBingo[0][0] != 0):
