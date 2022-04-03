@@ -39,7 +39,12 @@ configFile.close()
 
 # Query Bingo Database for Count
 countPayload = {'count': True}
-count = int(requests.get('http://localhost/michaeldoescoding/projects/pokemon/nuzlockebingo/ctrlpanel/index.php', params=countPayload).text)
+countRequest = requests.get('https://michaeldoescoding.net/projects/pokemon/nuzlockebingo/ctrlpanel/index.php', params=countPayload)
+count = 0
+if (countRequest.status_code != 200):
+    print("Couldn't retrieve count information, setting count to 0")
+else:
+    count = int(countRequest.text)
 
 # Establish Connection to Database
 database = apsw.Connection("data/db.sqlite")
@@ -213,7 +218,7 @@ async def bingo(ctx):
             # generate new code and put it into the table
             pickedEntries = list()
             for index in range(24):
-                randEntry = random.randint(0, count)
+                randEntry = random.randint(0, count - 1)
                 while pickedEntries.count(randEntry) > 0:
                     randEntry = random.randint(0, count - 1)
                 randEntryHex = hex(randEntry)[2:]
