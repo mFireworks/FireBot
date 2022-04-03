@@ -174,6 +174,23 @@ async def setloggingchannel(ctx):
     await logMessage(ctx.guild, ctx.channel, "#" + ctx.channel.name + " set as the logging channel for AssignBot.")
 
 @bot.command()
+async def toggleBingo(ctx):
+    isAdmin = await canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)
+    if (not isAdmin):
+        return
+
+    allowBingo = list(dbCursor.execute("select AllowBingo from flags where ServerID = ?", (ctx.guild.id, )))
+    if (len(allowBingo) == 0):
+        dbCursor.execute("insert into flags (ServerID, AllowBingo) values (?, ?)", (ctx.guild.id, 1))
+        await ctx.channel.send("Bingo has been activated for this server!")
+    elif (allowBingo[0][0] == 0):
+        dbCursor.execute("update flags set AllowBingo = ? where ServerID = ?", (1, ctx.guild.id))
+        await ctx.channel.send("Bingo has been activated for this server!")
+    elif (allowBingo[0][0] != 0):
+        dbCursor.execute("update flags set AllowBingo = ? where ServerID = ?", (0, ctx.guild.id))
+        await ctx.channel.send("Bingo has been deactivated for this server.")
+
+@bot.command()
 async def bingo(ctx):
     allowBingo = list(dbCursor.execute("select AllowBingo from flags where ServerID = ?", (ctx.guild.id, )))
     if (len(allowBingo) > 0 and allowBingo[0][0] != 0):
@@ -185,8 +202,8 @@ async def bingo(ctx):
             for index in range(24):
                 randEntry = random.randint(0, count)
                 while pickedEntries.count(randEntry) > 0:
-                    randEntry = random.randint(0, count)
-                randEntryHex = hex(randEntry)[2]
+                    randEntry = random.randint(0, count - 1)
+                randEntryHex = hex(randEntry)[2:]
                 while len(randEntryHex) < 4:
                     randEntryHex = "0" + randEntryHex
                 bingoCode = bingoCode + randEntryHex
