@@ -47,6 +47,8 @@ Once you have the bot running and have added it to some servers, it's ideal to s
   * Adds the specified role as an Admin role for the bot on this server.
 * .removeAdminRole [roleId]
   * Removes the specified role as an Admin role for the bot on this server.
+* .listAdminRoles
+  * Lists all the roles stored as an Admin role on this server. Will say "No Roles Found" when none are present.
 
 ## Commands
 
@@ -58,10 +60,10 @@ When the bot is running, it has a few commands that you can use. The prefix for 
 * .shutdown
   * Safely shuts down the bot, closing any connections to open files.
   * Permissions: All Admin Users
-* .setjoinrole [roleId]
+* .setJoinRole [roleId]
   * Sets the role that new users to this server will be assigned.
   * Permissions: All Admin Users
-* .setloggingchannel
+* .setLoggingChannel
   * Redirects all Event Logging messages to this channel.
   * Permissions: All Admin Users
 * .toggleBingo
