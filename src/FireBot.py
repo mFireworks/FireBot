@@ -28,12 +28,14 @@ except:
     }
     with open('data/config.json', "w+") as configFile:
         json.dump(config, configFile, indent=4)
+    input("Press Enter to continue...")
     exit()
 try:
     config = json.load(configFile)
 except:
     print("There seems to be an issue with the config.json file. Couldn't be read as json.")
-    print("Ensure the file is valid json.")
+    print("Ensure the file is valid json. Deleting the file and running the program again will regenerate it.")
+    input("Press Enter to continue...")
     exit()
 configFile.close()
 
@@ -231,4 +233,10 @@ async def bingo(ctx):
             bingoCode = userEntry[0][0]
         await ctx.channel.send(ctx.author.mention + " Bingo Code: " + bingoCode)
 
-bot.run(config['token'])
+try:
+    bot.run(config['token'])
+except BaseException as e:
+    print("An error occurred when trying to start the bot. Most likely the token given within config.json is incorrect.")
+    print("Error: " + e.__str__())
+    print()
+    input("Press Enter to Exit...")
