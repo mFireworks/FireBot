@@ -23,8 +23,8 @@ except:
     print("config.json couldn't be read! Creating the default template...")
     print("Be sure to insert your IDs into the file into the correct locations.")
     config = {
-        "ownerID": "insert-your-user-ID-here",
-        "token": "insert-bot-token-here"
+        "token": "insert-bot-token-here",
+        "enableConsoleLogging": True
     }
     with open('data/config.json', "w+") as configFile:
         json.dump(config, configFile, indent=4)
@@ -59,22 +59,25 @@ if (len(list(dbCursor.execute("SELECT name FROM sqlite_master WHERE type='table'
     dbCursor.execute("CREATE TABLE 'flags' ('ServerID' TEXT, 'JoinRoleID' TEXT, 'LoggingChannelID' TEXT, 'AllowBingo' INTEGER NOT NULL);")
 
 # Helper Functions
-async def logMessage(guild, defaultChannel, message):
+async def logEvent(guild, defaultChannel, message):
     loggingID = list(dbCursor.execute("select LoggingChannelID from flags where ServerID = ?;", (guild.id, )))
+    if (config['enableConsoleLogging']):
+        print("Event Log Message: " + message)
     if (len(loggingID) == 0):
-        if (defaultChannel == None):
-            print(message)
-        else:
+        if (defaultChannel != None):
             await defaultChannel.send(message)
         return
     logChannel = guild.get_channel(int(loggingID[0][0]))
     if (logChannel == None):
-        if (defaultChannel == None):
-            print(message)
-        else:
+        if (defaultChannel != None):
             await defaultChannel.send(message)
         return
     await logChannel.send(message)
+
+async def logCommand(ctx, message):
+    if (config['enableConsoleLogging']):
+        print("Server - Channel - User: " + ctx.guild.name + " - " + ctx.channel.name + " - " + ctx.author.name + " | Executed: " + ctx.message.content + " | Response: " + message)
+    await ctx.channel.send(message)
 
 async def canUseAdminCommand(guild, channel, user):
     adminRoles = list(dbCursor.execute("select AdminRoleID from adminRoles where ServerID = ?;", (guild.id, )))
@@ -86,39 +89,37 @@ async def canUseAdminCommand(guild, channel, user):
         for role in user.roles:
             isAdmin = adminRoles[0].count(str(role.id)) > 0 or isAdmin
 
-    if not isAdmin:
-        await channel.send("You need admin permissions to run this command")
     return isAdmin
 
 # Events
 @bot.event
 async def on_ready():
-    print('AssignBot Turned On...')
+    print('AssignBot Connected!')
 
 @bot.event
 async def on_member_join(member):
-    print("We have triggered the join event")
     joinRoleID = list(dbCursor.execute("select JoinRoleID from flags where ServerID = ?;", (member.guild.id, )))
     if (len(joinRoleID) == 0):
-        await logMessage(member.guild, None, member.guild.name + " doesn't have a join role set")
+        await logEvent(member.guild, None, member.guild.name + " doesn't have a join role set")
         return
 
     role = discord.utils.get(member.guild.roles, id=int(joinRoleID[0][0]))
     await member.add_roles(role)
-    await logMessage(member.guild, None, "Sent " + member.name + " to auto-join role " + role.name)
+    await logEvent(member.guild, None, "Sent " + member.name + " to auto-join role " + role.name)
 
 # Commands
 @bot.command()
 async def ping(ctx):
-    await ctx.send(f'Pong! {round(bot.latency * 1000)}ms')
+    await logCommand(ctx, f'Pong! {round(bot.latency * 1000)}ms')
 
 @bot.command()
 async def shutdown(ctx):
     isAdmin = await canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)
     if (not isAdmin):
+        await logCommand(ctx, "You need admin permissions to run this command")
         return
 
-    await logMessage(ctx.guild, ctx.channel, "Bot is shutting down.")
+    await logEvent(ctx.guild, ctx.channel, "Bot is shutting down.")
     await bot.close()
     database.close(True)
     print("AssignBot Closed...")
@@ -127,17 +128,18 @@ async def shutdown(ctx):
 async def setjoinrole(ctx, joinRoleID):
     isAdmin = await canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)
     if (not isAdmin):
+        await logCommand(ctx, "You need admin permissions to run this command")
         return
 
     try:
         int(joinRole)
     except:
-       await ctx.channel.send("The given joinRoleID isn't an int value: " + joinRoleID)
+       await logCommand(ctx, "The given joinRoleID isn't an int value: " + joinRoleID)
        return
 
     joinRole = ctx.guild.get_role(int(joinRoleID))
     if (joinRole == None):
-        await logMessage(ctx.guild, ctx.channel, "Provided role not found.")
+        await logCommand(ctx, "Provided role not found.")
         return
 
     serverEntries = list(dbCursor.execute("select ServerID from flags where ServerID = ?;", (ctx.guild.id, )))
@@ -145,56 +147,59 @@ async def setjoinrole(ctx, joinRoleID):
         dbCursor.execute("insert into flags (ServerID, JoinRoleID) values (?, ?);", (ctx.guild.id, joinRoleID))
     else:
         dbCursor.execute("update flags set JoinRoleID = ? where ServerID = ?;", (joinRoleID, ctx.guild.id))
-    await logMessage(ctx.guild, ctx.channel, joinRole.name + " has been set as the auto-join role for " + ctx.guild.name)
+    await logCommand(ctx, joinRole.name + " has been set as the auto-join role for " + ctx.guild.name)
 
 @bot.command()
 async def addAdminRole(ctx, adminRoleID):
     isAdmin = await canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)
     if (not isAdmin):
+        await logCommand(ctx, "You need admin permissions to run this command")
         return
 
     try:
         int(adminRoleID)
     except:
-       await ctx.channel.send("The given adminRoleID isn't an int value: " + adminRoleID)
+       await logCommand(ctx, "The given adminRoleID isn't an int value: " + adminRoleID)
        return
 
     adminRole = ctx.guild.get_role(int(adminRoleID))
     if (adminRole == None):
-        await logMessage(ctx.guild, ctx.channel, "Provided role not found.")
+        await logCommand(ctx, "Provided role not found.")
         return
 
     existingRoles = list(dbCursor.execute("select AdminRoleID from adminRoles where ServerID = ? and AdminRoleID = ?;", (ctx.guild.id, adminRoleID)))
     if (len(existingRoles) == 0):
         dbCursor.execute("insert into adminRoles (ServerID, AdminRoleID) values (?, ?);", (ctx.guild.id, adminRoleID))
-        await logMessage(ctx.guild, ctx.channel, "Added " + adminRole.name + " as an admin role.")
+        await logCommand(ctx, "Added " + adminRole.name + " as an admin role.")
 
 @bot.command()
 async def removeAdminRole(ctx, adminRoleID):
     isAdmin = await canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)
     if (not isAdmin):
+        await logCommand(ctx, "You need admin permissions to run this command")
         return
 
     try:
         int(adminRoleID)
     except:
-       await ctx.channel.send("The given adminRoleID isn't an int value: " + adminRoleID)
+       await logCommand(ctx, "The given adminRoleID isn't an int value: " + adminRoleID)
        return
 
     adminRole = ctx.guild.get_role(int(adminRoleID))
     if (adminRole == None):
-        await logMessage(ctx.guild, ctx.channel, "Provided role not found.")
+        await logCommand(ctx, "Provided role not found.")
         return
 
     existingRoles = list(dbCursor.execute("select AdminRoleID from adminRoles where ServerID = ? and AdminRoleID = ?;", (ctx.guild.id, adminRoleID)))
     if (len(existingRoles) > 0):
         dbCursor.execute("delete from adminRoles where ServerID = ? and AdminRoleID = ?;", (ctx.guild.id, adminRoleID))
-        await logMessage(ctx.guild, ctx.channel, "Removed " + adminRole.name + " as an admin role.")
+        await logCommand(ctx, "Removed " + adminRole.name + " as an admin role.")
 
 @bot.command()
 async def setloggingchannel(ctx):
     isAdmin = await canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)
     if (not isAdmin):
+        await logCommand(ctx, "You need admin permissions to run this command")
         return
 
     serverEntry = list(dbCursor.execute("select ServerID from flags where ServerID = ?;", (ctx.guild.id, )))
@@ -202,44 +207,46 @@ async def setloggingchannel(ctx):
         dbCursor.execute("insert into flags (ServerID, LoggingChannelID) values (?, ?);", (ctx.guild.id, ctx.channel.id))
     else:
         dbCursor.execute("update flags set LoggingChannelID = ? where ServerID = ?;", (ctx.channel.id, ctx.guild.id))
-    await logMessage(ctx.guild, ctx.channel, "#" + ctx.channel.name + " set as the logging channel for AssignBot.")
+    await logCommand(ctx, "#" + ctx.channel.name + " set as the logging channel for AssignBot.")
 
 @bot.command()
 async def toggleBingo(ctx):
     isAdmin = await canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)
     if (not isAdmin):
+        await logCommand(ctx, "You need admin permissions to run this command")
         return
 
     allowBingo = list(dbCursor.execute("select AllowBingo from flags where ServerID = ?;", (ctx.guild.id, )))
     if (len(allowBingo) == 0):
         dbCursor.execute("insert into flags (ServerID, AllowBingo) values (?, ?;)", (ctx.guild.id, 1))
-        await ctx.channel.send("Bingo has been activated for this server!")
+        await logCommand(ctx, "Bingo has been activated for this server!")
     elif (allowBingo[0][0] == 0):
         dbCursor.execute("update flags set AllowBingo = ? where ServerID = ?;", (1, ctx.guild.id))
-        await ctx.channel.send("Bingo has been activated for this server!")
+        await logCommand(ctx, "Bingo has been activated for this server!")
     elif (allowBingo[0][0] != 0):
         dbCursor.execute("update flags set AllowBingo = ? where ServerID = ?;", (0, ctx.guild.id))
-        await ctx.channel.send("Bingo has been deactivated for this server.")
+        await logCommand(ctx, "Bingo has been deactivated for this server.")
 
 @bot.command()
 async def resetUserBingo(ctx, userID):
     isAdmin = await canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)
     if (not isAdmin):
+        await logCommand(ctx, "You need admin permissions to run this command")
         return
 
     try:
         int(userID)
     except:
-       await ctx.channel.send("The given userID isn't an int value: " + userID)
+       await logCommand(ctx, "The given userID isn't an int value: " + userID)
        return
 
     user = ctx.guild.get_member(int(userID))
     if (user == None):
-        await ctx.channel.send("No user found in this server with ID: " + userID)
+        await logCommand(ctx, "No user found in this server with ID: " + userID)
         return
     
     dbCursor.execute("delete from bingo where ServerID = ? and UserID = ?;", (ctx.guild.id, userID))
-    await ctx.channel.send("Bingo Code has been cleared from " + user.name)
+    await logCommand(ctx, "Bingo Code has been cleared from " + user.name)
 
 @bot.command()
 async def bingo(ctx):
@@ -262,7 +269,7 @@ async def bingo(ctx):
             dbCursor.execute("insert into bingo (ServerID, UserID, BingoCode) values (?, ?, ?);", (ctx.guild.id, ctx.author.id, bingoCode))
         else:
             bingoCode = userEntry[0][0]
-        await ctx.channel.send(ctx.author.mention + " Bingo Code: " + bingoCode)
+        await logCommand(ctx, ctx.author.mention + " Bingo Code: " + bingoCode)
 
 try:
     bot.run(config['token'])
