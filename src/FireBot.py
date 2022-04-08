@@ -129,6 +129,12 @@ async def setjoinrole(ctx, joinRoleID):
     if (not isAdmin):
         return
 
+    try:
+        int(joinRole)
+    except:
+       await ctx.channel.send("The given joinRoleID isn't an int value: " + joinRoleID)
+       return
+
     joinRole = ctx.guild.get_role(int(joinRoleID))
     if (joinRole == None):
         await logMessage(ctx.guild, ctx.channel, "Provided role not found.")
@@ -147,6 +153,12 @@ async def addAdminRole(ctx, adminRoleID):
     if (not isAdmin):
         return
 
+    try:
+        int(adminRoleID)
+    except:
+       await ctx.channel.send("The given adminRoleID isn't an int value: " + adminRoleID)
+       return
+
     adminRole = ctx.guild.get_role(int(adminRoleID))
     if (adminRole == None):
         await logMessage(ctx.guild, ctx.channel, "Provided role not found.")
@@ -162,6 +174,12 @@ async def removeAdminRole(ctx, adminRoleID):
     isAdmin = await canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)
     if (not isAdmin):
         return
+
+    try:
+        int(adminRoleID)
+    except:
+       await ctx.channel.send("The given adminRoleID isn't an int value: " + adminRoleID)
+       return
 
     adminRole = ctx.guild.get_role(int(adminRoleID))
     if (adminRole == None):
@@ -208,6 +226,13 @@ async def resetUserBingo(ctx, userID):
     isAdmin = await canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)
     if (not isAdmin):
         return
+
+    try:
+        int(userID)
+    except:
+       await ctx.channel.send("The given userID isn't an int value: " + userID)
+       return
+
     user = ctx.guild.get_member(int(userID))
     if (user == None):
         await ctx.channel.send("No user found in this server with ID: " + userID)
