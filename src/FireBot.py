@@ -39,6 +39,14 @@ except:
     exit()
 configFile.close()
 
+try:
+    config['token']
+    config['enableConsoleLogging']
+except KeyError as e:
+    print("Unable to find key " + str(e) + " within the config.json. Ensure it's within the file and has a valid value.")
+    input("Press Enter to continue...")
+    exit()
+
 # Query Bingo Database for Count
 countPayload = {'count': True}
 countRequest = requests.get('https://michaeldoescoding.net/projects/pokemon/nuzlockebingo/ctrlpanel/index.php', params=countPayload)
@@ -275,6 +283,6 @@ try:
     bot.run(config['token'])
 except BaseException as e:
     print("An error occurred when trying to start the bot. Most likely the token given within config.json is incorrect.")
-    print("Error: " + e.__str__())
+    print("Error: " + str(e))
     print()
     input("Press Enter to Exit...")
