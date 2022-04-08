@@ -9,6 +9,8 @@ import json
 import requests
 # Using Random to generate random bingo codes
 import random
+# Using os for creating the config.json when it doesn't exist
+import os
 
 # Initialize Bot
 intents = discord.Intents(guilds=True, members=True, messages=True, reactions=True)
@@ -16,9 +18,10 @@ bot = commands.Bot(command_prefix='.', intents=intents)
 
 # Load Configuration Options
 configFile = 1
+configPath = 'data/config.json'
 config = {}
 try:
-    configFile = open('data/config.json')
+    configFile = open(configPath)
 except:
     print("config.json couldn't be read! Creating the default template...")
     print("Be sure to insert your IDs into the file into the correct locations.")
@@ -26,7 +29,8 @@ except:
         "token": "insert-bot-token-here",
         "enableConsoleLogging": True
     }
-    with open('data/config.json', "w+") as configFile:
+    os.makedirs(os.path.dirname(configPath), exist_ok=True)
+    with open(configPath, "w") as configFile:
         json.dump(config, configFile, indent=4)
     input("Press Enter to continue...")
     exit()
