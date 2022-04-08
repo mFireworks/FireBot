@@ -94,12 +94,12 @@ async def logCommand(ctx, message):
 async def canUseAdminCommand(guild, channel, user):
     adminRoles = list(dbCursor.execute("select AdminRoleID from adminRoles where ServerID = ?;", (guild.id, )))
     isAdmin = False
-    if (len(adminRoles) == 0):
-        # If no adminRoles have been set yet, then ensure that the user has Manage Guild permissions?
-        isAdmin = user.permissions_in(channel).manage_guild
-    else:
+    if (len(adminRoles) != 0):
         for role in user.roles:
             isAdmin = adminRoles[0].count(str(role.id)) > 0 or isAdmin
+    if (not isAdmin):
+        # If they don't have any of the Admin roles or there's no admin roles, we'll see if they have the manage_guild permission or are an administrator
+        isAdmin = user.permissions_in(channel).manage_guild or user.permissions_in(channel).administrator
 
     return isAdmin
 
@@ -137,7 +137,7 @@ async def shutdown(ctx):
     print("AssignBot Closed...")
 
 @bot.command()
-async def setjoinrole(ctx, joinRoleID):
+async def setJoinRole(ctx, joinRoleID):
     isAdmin = await canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)
     if (not isAdmin):
         await logCommand(ctx, "You need admin permissions to run this command")
@@ -183,6 +183,8 @@ async def addAdminRole(ctx, adminRoleID):
     if (len(existingRoles) == 0):
         dbCursor.execute("insert into adminRoles (ServerID, AdminRoleID) values (?, ?);", (ctx.guild.id, adminRoleID))
         await logCommand(ctx, "Added " + adminRole.name + " as an admin role.")
+    else:
+        await logCommand(ctx, adminRole.name + " as already an admin role.")
 
 @bot.command()
 async def removeAdminRole(ctx, adminRoleID):
@@ -206,9 +208,29 @@ async def removeAdminRole(ctx, adminRoleID):
     if (len(existingRoles) > 0):
         dbCursor.execute("delete from adminRoles where ServerID = ? and AdminRoleID = ?;", (ctx.guild.id, adminRoleID))
         await logCommand(ctx, "Removed " + adminRole.name + " as an admin role.")
+    else:
+        await logCommand(ctx, adminRole.name + " isn't an admin role.")
 
 @bot.command()
-async def setloggingchannel(ctx):
+async def listAdminRoles(ctx):
+    isAdmin = await canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)
+    if (not isAdmin):
+        await logCommand(ctx, "You need admin permissions to run this command")
+        return
+
+    adminRoles = list(dbCursor.execute("select AdminRoleID from adminRoles where ServerID = ?;", (ctx.guild.id,)))
+    roleNames = ""
+    for roleID in adminRoles:
+        if (roleNames == ""):
+            roleNames = ctx.guild.get_role(int(roleID[0])).name
+        else:
+            roleNames = roleNames + ", " + ctx.guild.get_role(int(roleID[0])).name
+    if (roleNames == ""):
+        roleNames = "No Roles Found"
+    await logCommand(ctx, "Admin Roles: " + roleNames)
+
+@bot.command()
+async def setLoggingChannel(ctx):
     isAdmin = await canUseAdminCommand(ctx.guild, ctx.channel, ctx.author)
     if (not isAdmin):
         await logCommand(ctx, "You need admin permissions to run this command")
