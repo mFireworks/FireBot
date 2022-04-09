@@ -53,7 +53,7 @@ except KeyError as e:
 
 # Query Bingo Database for Count
 countPayload = {'count': True}
-countRequest = requests.get('https://michaeldoescoding.net/projects/pokemon/nuzlockebingo/ctrlpanel/index.php', params=countPayload)
+countRequest = requests.get('https://michaeldoescoding.net/projects/pokemon/nuzlockebingo/index.php', params=countPayload)
 count = 0
 if (countRequest.status_code != 200):
     print("Couldn't retrieve count information, setting count to 0")
