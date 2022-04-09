@@ -96,7 +96,9 @@ async def canUseAdminCommand(guild, channel, user):
     isAdmin = False
     if (len(adminRoles) != 0):
         for role in user.roles:
-            isAdmin = adminRoles[0].count(str(role.id)) > 0 or isAdmin
+            for adminRole in adminRoles:
+                if (str(adminRole[0]) == str(role.id)):
+                    isAdmin = True
     if (not isAdmin):
         # If they don't have any of the Admin roles or there's no admin roles, we'll see if they have the manage_guild permission or are an administrator
         isAdmin = user.permissions_in(channel).manage_guild or user.permissions_in(channel).administrator
