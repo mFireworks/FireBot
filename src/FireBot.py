@@ -305,7 +305,7 @@ async def bingo(ctx):
             dbCursor.execute("insert into bingo (ServerID, UserID, BingoCode) values (?, ?, ?);", (ctx.guild.id, ctx.author.id, bingoCode))
         else:
             bingoCode = userEntry[0][0]
-        await logCommand(ctx, ctx.author.mention + " Bingo Code: " + bingoCode)
+        await logCommand(ctx, ctx.author.mention + " Bingo Code: " + bingoCode + "\nYou can view your bingo board here: https://michaeldoescoding.net/projects/pokemon/nuzlockebingo/index.html")
 
 try:
     bot.run(config['token'])
