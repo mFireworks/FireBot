@@ -75,7 +75,7 @@ async def logEvent(guild, defaultChannel, message):
     loggingID = list(dbCursor.execute("select LoggingChannelID from flags where ServerID = ?;", (guild.id, )))
     if (config['enableConsoleLogging']):
         print("Event Log Message: " + message)
-    if (len(loggingID) == 0):
+    if (len(loggingID) == 0 or loggingID[0][0] == None):
         if (defaultChannel != None):
             await defaultChannel.send(message)
         return
@@ -146,7 +146,7 @@ async def setJoinRole(ctx, joinRoleID):
         return
 
     try:
-        int(joinRole)
+        int(joinRoleID)
     except:
        await logCommand(ctx, "The given joinRoleID isn't an int value: " + joinRoleID)
        return
@@ -158,7 +158,7 @@ async def setJoinRole(ctx, joinRoleID):
 
     serverEntries = list(dbCursor.execute("select ServerID from flags where ServerID = ?;", (ctx.guild.id, )))
     if (len(serverEntries) == 0):
-        dbCursor.execute("insert into flags (ServerID, JoinRoleID) values (?, ?);", (ctx.guild.id, joinRoleID))
+        dbCursor.execute("insert into flags (ServerID, JoinRoleID, LoggingChannelID, AllowBingo) values (?, ?, ?);", (ctx.guild.id, joinRoleID, ctx.channel.id, 0))
     else:
         dbCursor.execute("update flags set JoinRoleID = ? where ServerID = ?;", (joinRoleID, ctx.guild.id))
     await logCommand(ctx, joinRole.name + " has been set as the auto-join role for " + ctx.guild.name)
@@ -240,7 +240,7 @@ async def setLoggingChannel(ctx):
 
     serverEntry = list(dbCursor.execute("select ServerID from flags where ServerID = ?;", (ctx.guild.id, )))
     if (len(serverEntry) == 0):
-        dbCursor.execute("insert into flags (ServerID, LoggingChannelID) values (?, ?);", (ctx.guild.id, ctx.channel.id))
+        dbCursor.execute("insert into flags (ServerID, LoggingChannelID, AllowBingo) values (?, ?, ?);", (ctx.guild.id, ctx.channel.id, 0))
     else:
         dbCursor.execute("update flags set LoggingChannelID = ? where ServerID = ?;", (ctx.channel.id, ctx.guild.id))
     await logCommand(ctx, "#" + ctx.channel.name + " set as the logging channel for AssignBot.")
