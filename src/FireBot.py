@@ -158,7 +158,7 @@ async def setJoinRole(ctx, joinRoleID):
 
     serverEntries = list(dbCursor.execute("select ServerID from flags where ServerID = ?;", (ctx.guild.id, )))
     if (len(serverEntries) == 0):
-        dbCursor.execute("insert into flags (ServerID, JoinRoleID, LoggingChannelID, AllowBingo) values (?, ?, ?);", (ctx.guild.id, joinRoleID, ctx.channel.id, 0))
+        dbCursor.execute("insert into flags (ServerID, JoinRoleID, LoggingChannelID, AllowBingo) values (?, ?, ?, ?);", (ctx.guild.id, joinRoleID, ctx.channel.id, 0))
     else:
         dbCursor.execute("update flags set JoinRoleID = ? where ServerID = ?;", (joinRoleID, ctx.guild.id))
     await logCommand(ctx, joinRole.name + " has been set as the auto-join role for " + ctx.guild.name)
