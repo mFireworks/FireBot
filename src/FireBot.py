@@ -13,7 +13,7 @@ import random
 import os
 
 # Initialize Bot
-intents = discord.Intents(guilds=True, members=True, messages=True, reactions=True)
+intents = discord.Intents(guilds=True, members=True, messages=True, message_content=True, reactions=True)
 bot = commands.Bot(command_prefix='.', intents=intents)
 
 # Load Configuration Options
@@ -101,7 +101,7 @@ async def canUseAdminCommand(guild, channel, user):
                     isAdmin = True
     if (not isAdmin):
         # If they don't have any of the Admin roles or there's no admin roles, we'll see if they have the manage_guild permission or are an administrator
-        isAdmin = user.permissions_in(channel).manage_guild or user.permissions_in(channel).administrator
+        isAdmin = channel.permissions_for(user).manage_guild or channel.permissions_for(user).administrator
 
     return isAdmin
 
